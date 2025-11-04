@@ -17,10 +17,12 @@ public class TransactionService {
     
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
+    private final IncentiveService incentiveService;
     
-    public TransactionService(UserRepository userRepository, TransactionRepository transactionRepository) {
+    public TransactionService(UserRepository userRepository, TransactionRepository transactionRepository, IncentiveService incentiveService) {
         this.userRepository = userRepository;
         this.transactionRepository = transactionRepository;
+        this.incentiveService = incentiveService;
     }
     
     @Transactional
@@ -47,20 +49,23 @@ public class TransactionService {
                 return false;
             }
             
+            // Get incentive from API
+            float incentive = incentiveService.getIncentive(transaction);
+            
             // Process the transaction
             sender.setBalance(sender.getBalance() - transaction.getAmount());
-            recipient.setBalance(recipient.getBalance() + transaction.getAmount());
+            recipient.setBalance(recipient.getBalance() + transaction.getAmount() + incentive);
             
             // Save updated balances
             userRepository.save(sender);
             userRepository.save(recipient);
             
             // Record the transaction
-            TransactionRecord transactionRecord = new TransactionRecord(sender, recipient, transaction.getAmount());
+            TransactionRecord transactionRecord = new TransactionRecord(sender, recipient, transaction.getAmount(), incentive);
             transactionRepository.save(transactionRecord);
             
-            logger.info("Transaction processed successfully: {} -> {} amount: {}", 
-                       sender.getName(), recipient.getName(), transaction.getAmount());
+            logger.info("Transaction processed successfully: {} -> {} amount: {}, incentive: {}", 
+                       sender.getName(), recipient.getName(), transaction.getAmount(), incentive);
             
             return true;
             
